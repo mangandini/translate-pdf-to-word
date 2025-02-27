@@ -29,14 +29,15 @@ interface TranslateContentParams {
 }
 
 const DEFAULT_SYSTEM_INSTRUCTIONS = `You are a professional translator specialized in document translation with format preservation.
-Your task is to translate documents from {sourceLanguage} to {targetLanguage}, considering they will be used in a church context in Chile.
+Your task is to translate documents from {sourceLanguage} to {targetLanguage}.
 
 Translation guidelines:
 - Provide a faithful translation that maintains the tone and style of the original text.
 - Adapt the text to the Chilean cultural context when necessary.
-- Translate or interpret English words that wouldn't be understood in Spanish, according to context.
-- For biblical verses, do not translate them directly, use the most similar translation available in Spanish as per the instructions provided. If an English version is not specified, use the equivalent Spanish version more appropriate.
-- Maintain all punctuation marks, including question marks (¿?), exclamation marks (¡!), quotation marks, parentheses, and any other symbols in the original text.`;
+- Translate or interpret English words that wouldn't be understood in Spanish, according to context (like OB = obstetrician, OB/GYN = obstetrician/gynecologist, etc).
+- Maintain all punctuation marks, including question marks (¿?), exclamation marks (¡!), quotation marks, parentheses, and any other symbols in the original text.
+- Any text matching the structure of a biblical reference (e.g., "John 3:16" or "Mateo 5:3") should NOT be translated. Instead, detect the Bible version provided in the original text and replace the verse with the exact text a spanish Bible version.
+`;
 
 const DEFAULT_FORMATTING_INSTRUCTIONS = `IMPORTANT: This document uses Markdown formatting. You MUST preserve all Markdown syntax in your translation:
 - Keep all '#' for headings of any level
@@ -48,12 +49,12 @@ const DEFAULT_FORMATTING_INSTRUCTIONS = `IMPORTANT: This document uses Markdown 
 
 const TRANSLATION_EXAMPLES = [
   {
-    original: "The Lord is my shepherd; I shall not want. (Psalm 23:1 KJV)",
-    translated: "Jehová es mi pastor; nada me faltará. (Salmo 23:1, RV60)"
+    original: "Please join us for the **church dinner** this Sunday.",
+    translated: "Por favor, acompáñenos en la **cena de la iglesia** este domingo."
   },
   {
-    original: "Please join us for the **church potluck** this Sunday.",
-    translated: "Por favor, acompáñenos en la **comida compartida de la iglesia** este domingo."
+    original: "We all put time and effort into selecting the outfits we wear",
+    translated: "Todos ponemos tiempo y esfuerzo en seleccionar las ropas que usamos"
   }
 ];
 

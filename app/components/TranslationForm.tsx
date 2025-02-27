@@ -15,13 +15,17 @@ import { Label } from "./ui/label"
 import { Textarea } from "./ui/textarea"
 import { ArrowRight, Languages, Settings2 } from "lucide-react"
 
-const DEFAULT_PROMPT = `When translating biblical verses, please use the following Spanish versions for the corresponding English versions:
-- English Standard Version (ESV) → Reina-Valera 1960 (RVR1960)
-- New International Version (NIV) → Nueva Versión Internacional (NVI)
-- New American Standard Bible (NASB) → Nueva Biblia de las Américas (NBLA)
-- New King James Version (NKJV) → Reina-Valera 1960 (RVR1960)
-- Amplified Bible (AMP) → Biblia Amplificada en Español (BLA)
-- The Message (MSG) → Dios Habla Hoy (DHH)`;
+const DEFAULT_PROMPT = `IMPORTANT: DO NOT TRANSLATE any biblical verses, instead, detect the Bible version provided in the original text and replace the verse with an exact Spanish bible version as follows:
+
+- English Standard Version (ESV) > Reina-Valera 1960 (RVR1960)
+- New International Version (NIV) > Nueva Versión Internacional (NVI)
+- New American Standard Bible (NASB) > Nueva Biblia de las Américas (NBLA)
+- New King James Version (NKJV) > Reina-Valera 1960 (RVR1960)
+- Amplified Bible (AMP) > Biblia Amplificada en Español (BLA)
+- The Message (MSG) > Dios Habla Hoy (DHH)
+
+- If the biblical verse is from an English Bible version not listed above, please use the most similar Spanish Bible version available. Ensure that only the non-biblical portions of the text are translated, and that the structure and formatting of the original document are maintained.
+`;
 
 interface TranslationFormProps {
   uploadedFile: UploadedFile | null;
