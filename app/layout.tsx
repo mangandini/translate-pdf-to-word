@@ -7,7 +7,7 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "PDF to Word Translator",
+  title: "PDF / Word Translator",
   description: "Translate PDF documents to Word with formatting preserved",
 };
 

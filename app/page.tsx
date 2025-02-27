@@ -163,7 +163,7 @@ export default function Home() {
                     <button
                       onClick={handleDownload}
                       disabled={status === "downloading"}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white dark:text-black bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
                     >
                       {status === "downloading" ? (
                         <>
@@ -180,7 +180,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground">
-                    <p>Upload a PDF and configure translation settings to get started</p>
+                    <p>Upload a PDF or Word file and configure translation settings to get started</p>
                   </div>
                 )}
               </div>

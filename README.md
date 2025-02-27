@@ -1,15 +1,14 @@
-# PDF to Word Translator
+# PDF - DOCx Translator to Word
 
-A web application that translates PDF documents to different languages while preserving formatting, and exports the result as a Word document.
+A web application that translates Word and PDF documents to different languages while preserving formatting, and exports the result as a Word document.
 
 ## Features
 
-- Upload PDF documents
+- Upload DOCX / PDF documents
 - Extract text and formatting (bold, italic, headers, lists)
-- Translate content to multiple languages using OpenAI's GPT-4
-- Preserve document structure and formatting
+- Translate content to multiple languages using OpenAI's API
+- Preserve document structure and formatting as much as possible
 - Export as Word document (.docx)
-- Real-time preview and editing of translated content
 
 ## Prerequisites
 
@@ -44,7 +43,7 @@ A web application that translates PDF documents to different languages while pre
 
 ## Usage
 
-1. Click the upload button to select a PDF file
+1. Click the upload button to select a file
 2. Choose the source and target languages
 3. Enable/disable formatting preservation
 4. Add any custom translation instructions (optional)
@@ -62,6 +61,7 @@ A web application that translates PDF documents to different languages while pre
 - OpenAI GPT-4
 - Tailwind CSS
 - Shadcn/ui
+- Mammoth
 
 ## License
 

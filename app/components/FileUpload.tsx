@@ -17,7 +17,7 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
   const getFileTypeIcon = (fileType: string) => {
     switch (fileType) {
       case 'application/pdf':
-        return <FileText className="h-8 w-8 text-red-500" />;
+        return <FileText className="h-8 w-8 text-purple-500" />;
       case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
         return <FileText className="h-8 w-8 text-blue-500" />;
       default:
@@ -125,7 +125,7 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
             ? "border-primary bg-primary/5 scale-[1.02]" 
             : file 
               ? file.type === 'application/pdf'
-                ? "border-red-500 bg-red-50 dark:bg-red-950/20"
+                ? "border-purple-500 bg-purple-50 dark:bg-purple-950/20"
                 : "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
               : "border-border hover:border-primary/50 hover:bg-secondary/50"
         } ${isProcessing ? "opacity-70 cursor-not-allowed" : ""}`}
