@@ -36,7 +36,7 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = useCallback(async (file: File) => {
     if (file.size > 8 * 1024 * 1024) {
       toast.error("File too large", {
         description: "Please upload a file smaller than 8MB.",
@@ -66,7 +66,7 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
       };
 
       setFile(file);
-      onFileUpload?.(uploadedFile);
+      if (onFileUpload) onFileUpload(uploadedFile);
       toast.success("File ready", {
         description: `Your ${getFileTypeLabel(file.type)} file has been loaded successfully.`,
       });
@@ -77,12 +77,14 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [onFileUpload]);
 
   const clearFile = () => {
     if (file) {
       setFile(null);
-      onFileUpload?.(null as any);
+      if (onFileUpload) {
+        onFileUpload(undefined as never);
+      }
     }
   };
 
@@ -104,14 +106,14 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
     if (!droppedFile) return;
 
     handleFileUpload(droppedFile);
-  }, []);
+  }, [handleFileUpload]);
 
   const onFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
     handleFileUpload(selectedFile);
-  }, []);
+  }, [handleFileUpload]);
 
   return (
     <div className="space-y-4">

@@ -46,7 +46,7 @@ class ServerFile {
 
 // Make File available in the global scope if needed
 if (typeof File === 'undefined') {
-  (global as any).File = ServerFile;
+  (global as unknown as { File: typeof File }).File = ServerFile as unknown as typeof File;
 }
 
 export async function POST(request: NextRequest) {

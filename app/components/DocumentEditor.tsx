@@ -2,11 +2,8 @@
 
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Heading from '@tiptap/extension-heading'
-import BulletList from '@tiptap/extension-bullet-list'
-import OrderedList from '@tiptap/extension-ordered-list'
 import ListItem from '@tiptap/extension-list-item'
-import { Bold, Italic, List, ListOrdered, Type } from 'lucide-react'
+import { Bold, Italic, List, ListOrdered } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useEffect, useState } from 'react'
 import { md } from '../lib/markdown-utils'

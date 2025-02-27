@@ -12,7 +12,6 @@ import {
 } from "./ui/select"
 import { Switch } from "./ui/switch"
 import { Label } from "./ui/label"
-// @ts-ignore
 import { Textarea } from "./ui/textarea"
 import { ArrowRight, Languages, Settings2 } from "lucide-react"
 

@@ -3,32 +3,24 @@ import {
   Packer,
   Paragraph,
   TextRun,
-  HeadingLevel,
   AlignmentType,
-  UnderlineType,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
   BorderStyle,
   IStylesOptions,
-  NumberFormat,
-  LevelFormat,
   convertInchesToTwip,
   INumberingOptions,
   ILevelsOptions
 } from 'docx';
 import { md } from './markdown-utils';
 
-// Define Token interface locally
-interface Token {
+// Define Token interface for internal use
+interface TokenInternal {
   type: string;
   tag: string;
   attrs: [string, string][] | null;
   map: [number, number] | null;
   nesting: number;
   level: number;
-  children: Token[] | null;
+  children: TokenInternal[] | null;
   content: string;
   markup: string;
   info: string;
@@ -156,7 +148,7 @@ export async function generateWordDocument(markdownContent: string): Promise<Buf
 function convertMarkdownToDocx(markdown: string): Paragraph[] {
   const tokens = md.parse(markdown, {});
   const paragraphs: Paragraph[] = [];
-  let currentListLevel = 0;
+  const currentListLevel = 0;
   
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -245,7 +237,7 @@ function convertMarkdownToDocx(markdown: string): Paragraph[] {
           
           // Process the text with formatting and add to the paragraph
           // This will handle partial formatting within the list item
-          const textRuns = processTextWithFormatting(itemContent, tokens[itemStartIndex]);
+          const textRuns = processTextWithFormatting(itemContent);
           textRuns.forEach(run => listParagraph.addChildElement(run));
           
           paragraphs.push(listParagraph);
@@ -280,7 +272,7 @@ function convertMarkdownToDocx(markdown: string): Paragraph[] {
   return paragraphs;
 }
 
-function processTextWithFormatting(text: string, token: any): TextRun[] {
+function processTextWithFormatting(text: string): TextRun[] {
   // Special case for list items with partial formatting (e.g., "**Bold part**: regular part")
   const colonFormatPattern = /^\*\*(.*?)\*\*\s*:\s*(.*)$/;
   const colonFormatMatch = text.match(colonFormatPattern);
@@ -387,7 +379,7 @@ function processTextWithFormatting(text: string, token: any): TextRun[] {
   return textRuns;
 }
 
-function createParagraphWithFormatting(text: string, token: any, style?: string): Paragraph {
+function createParagraphWithFormatting(text: string, tokenData: TokenInternal, style?: string): Paragraph {
   // Split text by newlines to handle line breaks
   const lines = text.split('\n');
   const paragraph = new Paragraph({
@@ -402,7 +394,7 @@ function createParagraphWithFormatting(text: string, token: any, style?: string)
   // Process each line
   lines.forEach((line, index) => {
     // Add text runs with formatting for this line
-    const textRuns = processTextWithFormatting(line, token);
+    const textRuns = processTextWithFormatting(line);
     textRuns.forEach(run => paragraph.addChildElement(run));
     
     // Add line break between lines (except for the last line)
@@ -412,24 +404,4 @@ function createParagraphWithFormatting(text: string, token: any, style?: string)
   });
   
   return paragraph;
-}
-
-function getHeadingLevel(level: number): typeof HeadingLevel[keyof typeof HeadingLevel] {
-  switch (level) {
-    case 1: return HeadingLevel.HEADING_1;
-    case 2: return HeadingLevel.HEADING_2;
-    case 3: return HeadingLevel.HEADING_3;
-    case 4: return HeadingLevel.HEADING_4;
-    default: return HeadingLevel.HEADING_5;
-  }
-}
-
-function getHeadingSize(level: number): number {
-  switch (level) {
-    case 1: return 32;
-    case 2: return 26;
-    case 3: return 22;
-    case 4: return 20;
-    default: return 16;
-  }
 }

@@ -5,49 +5,6 @@ import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
 import { PDFContent } from './pdf-parser';
 import { Node } from 'turndown';
-import { lint as lintPromise } from 'markdownlint/promise';
-
-// Define Mammoth types
-interface MammothOptions {
-  styleMap?: string[];
-  includeDefaultStyleMap?: boolean;
-  convertImage?: unknown;
-  includeEmbeddedStyleMap?: boolean;
-  ignoreEmptyParagraphs?: boolean;
-  idPrefix?: string;
-}
-
-interface MammothInput {
-  arrayBuffer: ArrayBuffer;
-  styleMap?: string[];
-  includeDefaultStyleMap?: boolean;
-  ignoreEmptyParagraphs?: boolean;
-}
-
-interface MammothResult {
-  value: string;
-  messages: Array<{
-    type: string;
-    message: string;
-    locationInInput?: object;
-  }>;
-}
-
-// Define Markdownlint types
-interface MarkdownlintReplacement {
-  start: number;
-  end: number;
-  text: string;
-}
-
-interface MarkdownlintFixInfo {
-  lineNumber: number;
-  replacements: MarkdownlintReplacement[];
-}
-
-interface MarkdownlintResult {
-  fixInfo?: MarkdownlintFixInfo;
-}
 
 // Configurar Turndown para la conversión de HTML a Markdown
 const turndownService = new Turndown({
@@ -58,16 +15,6 @@ const turndownService = new Turndown({
   bulletListMarker: '-',     // Use - for unordered lists
   hr: '---',                 // Use --- for horizontal rules
 });
-
-// Configurar Markdownlint
-const markdownlintConfig = {
-  "default": true,
-  "MD013": false,  // Line length
-  "MD033": false,  // Inline HTML
-  "MD041": false,  // First line h1
-  "MD002": false,  // First header should be h1
-  "MD031": false,  // Fenced code blocks
-};
 
 // Mejorar el manejo de listas y otros elementos
 turndownService.addRule('listItems', {
@@ -93,7 +40,7 @@ turndownService.addRule('paragraphs', {
 async function cleanMarkdown(markdown: string): Promise<string> {
   try {
     // Aplicar reglas básicas de limpieza
-    let cleanedMarkdown = markdown
+    const cleanedMarkdown = markdown
       // Eliminar espacios en blanco múltiples
       .replace(/\s+/g, ' ')
       // Normalizar saltos de línea
@@ -105,7 +52,6 @@ async function cleanMarkdown(markdown: string): Promise<string> {
       .replace(/^\d+\.\s*/gm, '1. ')
       // Eliminar espacios al final de las líneas
       .replace(/[ \t]+$/gm, '')
-      // Asegurar un salto de línea al final del archivo
       .trim() + '\n';
 
     console.log('Basic Markdown cleaning completed');
@@ -205,21 +151,4 @@ export async function parseWord(file: Blob): Promise<PDFContent> {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to parse Word document: ${errorMessage}. Please ensure the file is a valid .docx file and try again.`);
   }
-}
-
-/**
- * Elimina el marcado Markdown para obtener texto plano
- * Esta función no se usa en el parser de Word pero se mantiene por consistencia con pdf-parser
- */
-function stripMarkdown(markdown: string): string {
-  return markdown
-    .replace(/#{1,6}\s+/g, '')         // Eliminar encabezados
-    .replace(/\*\*(.*?)\*\*/g, '$1')   // Eliminar negritas
-    .replace(/\*(.*?)\*/g, '$1')       // Eliminar cursivas
-    .replace(/^\s*[*+-]\s+/gm, '')     // Eliminar listas no ordenadas
-    .replace(/^\s*\d+\.\s+/gm, '')     // Eliminar listas ordenadas
-    .replace(/`{1,3}(.*?)`{1,3}/g, '$1') // Eliminar código
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Reemplazar enlaces con solo el texto
-    .replace(/\n{2,}/g, '\n')          // Normalizar espacios en blanco
-    .trim();                           // Eliminar espacios en blanco al inicio y final
 } 

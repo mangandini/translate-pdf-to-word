@@ -1,8 +1,8 @@
 import * as pdfjs from 'pdfjs-dist'
 import { TextItem } from 'pdfjs-dist/types/src/display/api'
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry'
 
 // Configure worker
-const pdfjsWorker = require('pdfjs-dist/build/pdf.worker.entry')
 pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker
 
 export interface PDFContent {
@@ -99,7 +99,7 @@ export async function parsePDF(input: Blob | File): Promise<PDFContent> {
     let markdownContent = '';
     let hasHeaders = false;
     let hasFooters = false;
-    let hasTables = false;
+    const hasTables = false;
     let hasImages = false;
     
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
