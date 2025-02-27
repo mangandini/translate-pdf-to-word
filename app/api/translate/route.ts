@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parsePDF } from '../../lib/pdf-parser';
+import { parseWord } from '../../lib/word-parser';
 import { translateContent } from '../../lib/openai';
 import { generateWordDocument } from '../../lib/docx-generator';
 import { SUPPORTED_LANGUAGES } from '../../lib/constants';
@@ -70,6 +71,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate file type
+    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!validTypes.includes(fileData.type)) {
+      return NextResponse.json(
+        { error: `Invalid file type: ${fileData.type}. Only PDF and Word (.docx) files are supported.` },
+        { status: 400 }
+      );
+    }
+
     // Get original filename
     const originalFilename = (fileData as File).name || 'document';
     
@@ -97,21 +107,51 @@ export async function POST(request: NextRequest) {
     // Create new filename with target language
     const newFilename = `${filenameWithoutExt} - ${targetLanguageName}.docx`;
 
-    // Parse PDF to Markdown
-    console.log('Parsing PDF...');
-    const pdfContent = await parsePDF(fileData);
-    console.log('PDF parsed successfully');
+    // Parse document to Markdown based on file type
+    console.log(`Processing ${fileData.type} file...`);
+    let documentContent;
+    try {
+      if (fileData.type === 'application/pdf') {
+        console.log('Parsing PDF...');
+        documentContent = await parsePDF(fileData);
+      } else {
+        console.log('Parsing Word document...');
+        documentContent = await parseWord(fileData);
+      }
+      console.log('Document parsed successfully');
+    } catch (error) {
+      console.error('Error parsing document:', error);
+      return NextResponse.json(
+        { 
+          error: 'Failed to parse document',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        },
+        { status: 400 }
+      );
+    }
 
     // Translate content
     console.log('Starting translation...');
-    const translationResult = await translateContent({
-      content: pdfContent,
-      sourceLanguage,
-      targetLanguage,
-      preserveFormatting,
-      customPrompt
-    });
-    console.log('Translation completed');
+    let translationResult;
+    try {
+      translationResult = await translateContent({
+        content: documentContent,
+        sourceLanguage,
+        targetLanguage,
+        preserveFormatting,
+        customPrompt
+      });
+      console.log('Translation completed');
+    } catch (error) {
+      console.error('Translation error:', error);
+      return NextResponse.json(
+        { 
+          error: 'Translation failed',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
 
     // Generate Word document
     console.log('Generating Word document...');
@@ -134,7 +174,7 @@ export async function POST(request: NextRequest) {
       } else {
         // Return as base64 in JSON response
         const base64Doc = buffer.toString('base64');
-        console.log('Word document generated');
+        console.log('Word document generated successfully');
 
         return NextResponse.json({
           ...translationResult,
@@ -145,7 +185,10 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error('Error generating Word document:', error);
       return NextResponse.json(
-        { error: 'Failed to generate Word document', details: error instanceof Error ? error.message : 'Unknown error' },
+        { 
+          error: 'Failed to generate Word document',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        },
         { status: 500 }
       );
     }
@@ -153,7 +196,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error processing request:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'An error occurred' },
+      { 
+        error: 'An unexpected error occurred',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

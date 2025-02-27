@@ -14,6 +14,28 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const getFileTypeIcon = (fileType: string) => {
+    switch (fileType) {
+      case 'application/pdf':
+        return <FileText className="h-8 w-8 text-red-500" />;
+      case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        return <FileText className="h-8 w-8 text-blue-500" />;
+      default:
+        return <FileText className="h-8 w-8 text-primary" />;
+    }
+  };
+
+  const getFileTypeLabel = (fileType: string) => {
+    switch (fileType) {
+      case 'application/pdf':
+        return 'PDF';
+      case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        return 'Word';
+      default:
+        return 'Document';
+    }
+  };
+
   const handleFileUpload = async (file: File) => {
     if (file.size > 8 * 1024 * 1024) {
       toast.error("File too large", {
@@ -22,9 +44,10 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
       return;
     }
 
-    if (file.type !== "application/pdf") {
+    if (file.type !== "application/pdf" && 
+        file.type !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
       toast.error("Invalid file type", {
-        description: "Please upload a PDF file.",
+        description: "Please upload a PDF or Word (.docx) file.",
       });
       return;
     }
@@ -45,7 +68,7 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
       setFile(file);
       onFileUpload?.(uploadedFile);
       toast.success("File ready", {
-        description: "Your PDF has been loaded successfully.",
+        description: `Your ${getFileTypeLabel(file.type)} file has been loaded successfully.`,
       });
     } catch (error) {
       toast.error("Upload failed", {
@@ -92,14 +115,16 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Upload PDF</h2>
+      <h2 className="text-xl font-semibold">Upload Document</h2>
       
       <div
         className={`relative border-2 border-dashed rounded-lg p-8 transition-all duration-200 ${
           isDragging 
             ? "border-primary bg-primary/5 scale-[1.02]" 
             : file 
-              ? "border-green-500 bg-green-50 dark:bg-green-950/20" 
+              ? file.type === 'application/pdf'
+                ? "border-red-500 bg-red-50 dark:bg-red-950/20"
+                : "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
               : "border-border hover:border-primary/50 hover:bg-secondary/50"
         } ${isProcessing ? "opacity-70 cursor-not-allowed" : ""}`}
         onDragOver={onDragOver}
@@ -108,7 +133,7 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
       >
         <input
           type="file"
-          accept=".pdf"
+          accept=".pdf,.docx"
           onChange={onFileSelect}
           className="hidden"
           id="file-upload"
@@ -118,13 +143,17 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
         {file ? (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-md">
-                <FileText className="h-8 w-8 text-primary" />
+              <div className={`p-2 rounded-md ${
+                file.type === 'application/pdf' 
+                  ? 'bg-red-100 dark:bg-red-950/40' 
+                  : 'bg-blue-100 dark:bg-blue-950/40'
+              }`}>
+                {getFileTypeIcon(file.type)}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{file.name}</p>
                 <p className="text-sm text-muted-foreground">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                  {getFileTypeLabel(file.type)} • {(file.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               </div>
             </div>
@@ -146,7 +175,7 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
             }`}
             tabIndex={0}
             role="button"
-            aria-label="Upload PDF file"
+            aria-label="Upload document"
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 document.getElementById("file-upload")?.click();
@@ -158,13 +187,22 @@ export function FileUpload({ onFileUpload }: FileUploadProps) {
             </div>
             <div className="text-center">
               <p className="text-lg font-medium">
-                {isProcessing ? "Processing..." : "Drop your PDF here or click to upload"}
+                {isProcessing ? "Processing..." : "Drop your PDF or Word file here or click to upload"}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                Maximum file size: 8MB
+                Supported formats: PDF, Word (.docx) • Maximum size: 8MB
               </p>
             </div>
           </label>
+        )}
+
+        {isProcessing && (
+          <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p className="text-sm font-medium">Processing your {file ? getFileTypeLabel(file.type) : 'document'}...</p>
+            </div>
+          </div>
         )}
       </div>
     </div>
