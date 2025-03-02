@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { translationService } from '../../lib/services/translation.service';
-import { SUPPORTED_LANGUAGES } from '../../lib/constants';
 
 // Polyfill for File API in Node.js environment
 // Note: This is a simplified implementation for server-side use

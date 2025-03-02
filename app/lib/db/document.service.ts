@@ -1,6 +1,5 @@
-import { Document } from '@prisma/client'
+import { Document, Prisma } from '@prisma/client'
 import { prisma } from './client'
-import { PrismaClient, Prisma } from '@prisma/client'
 import type { DocumentStatus } from '../../types/document'
 
 export interface DocumentFilter {
@@ -86,8 +85,8 @@ export class DocumentService {
     const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc', filter } = params;
     const skip = (page - 1) * limit;
 
-    // Construir el where basado en los filtros
-    const where: any = {};
+    // Build where clause with proper type
+    const where: Prisma.DocumentWhereInput = {};
     if (filter) {
       if (filter.userId) where.userId = filter.userId;
       if (filter.status) where.status = filter.status;
@@ -101,7 +100,7 @@ export class DocumentService {
       }
     }
 
-    // Ejecutar las queries en paralelo
+    // Execute queries in parallel
     const [documents, total] = await Promise.all([
       prisma.document.findMany({
         where,
@@ -138,4 +137,18 @@ export class DocumentService {
 }
 
 // Exportar una instancia singleton del servicio
-export const documentService = new DocumentService(); 
+export const documentService = new DocumentService();
+
+export async function findDocuments(
+  where: Prisma.DocumentWhereInput = {},
+  orderBy: Prisma.DocumentOrderByWithRelationInput = {},
+  take?: number,
+  skip?: number
+): Promise<Document[]> {
+  return await prisma.document.findMany({
+    where,
+    orderBy,
+    take,
+    skip,
+  });
+} 

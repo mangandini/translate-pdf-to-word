@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { documentService } from '../../lib/db/document.service';
-import { Document, Prisma } from '@prisma/client';
+// import { Document } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (targetLanguage) where.targetLanguage = targetLanguage;
 
     // Build orderBy clause
-    let orderBy: Prisma.DocumentOrderByWithRelationInput = {};
+    const orderBy: Prisma.DocumentOrderByWithRelationInput = {};
     switch (sortBy) {
       case 'date':
         orderBy.createdAt = sortOrder;

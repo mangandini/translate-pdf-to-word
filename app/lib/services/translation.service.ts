@@ -4,7 +4,6 @@ import { translateContent } from '../openai';
 import { generateWordDocument } from '../docx-generator';
 import { documentService } from '../db/document.service';
 import { SUPPORTED_LANGUAGES } from '../constants';
-import type { Document } from '@prisma/client';
 import type { DocumentStatus } from '../../types/document';
 
 export interface TranslationOptions {

@@ -1,5 +1,6 @@
 import pdf2md from '@opendocsg/pdf2md';
 import * as pdfjs from 'pdfjs-dist';
+import { TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
 
 // Configure worker
@@ -7,17 +8,14 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 // PDF to Markdown conversion callbacks
 const PDF2MD_CALLBACKS = {
-  // Called when metadata is parsed
-  metadataParsed: (metadata: any) => {
-    console.log('PDF metadata parsed:', metadata);
+  metadataParsed: () => {
+    console.log('[PDF Processing] Metadata successfully parsed');
   },
-  // Called when each page is parsed
-  pageParsed: (pages: any[]) => {
-    console.log('Page parsed, total pages:', pages.length);
+  pageParsed: () => {
+    console.log('[PDF Processing] Page content successfully parsed');
   },
-  // Called when document parsing is complete
-  documentParsed: (document: any, pages: any[]) => {
-    console.log('Document parsing complete');
+  documentParsed: () => {
+    console.log('[PDF Processing] Document parsing completed successfully');
   }
 };
 
@@ -105,12 +103,17 @@ async function extractTextContent(pdf: pdfjs.PDFDocumentProxy): Promise<string> 
     const content = await page.getTextContent();
     
     // Process items with position information
-    const items = content.items.map((item: any) => ({
-      text: item.str,
-      y: item.transform[5],
-      x: item.transform[4],
-      fontName: item.fontName
-    }));
+    const items = content.items.map((item: TextItem | TextMarkedContent) => {
+      if ('str' in item) { // Type guard for TextItem
+        return {
+          text: item.str,
+          y: item.transform[5],
+          x: item.transform[4],
+          fontName: item.fontName
+        };
+      }
+      return null;
+    }).filter((item): item is NonNullable<typeof item> => item !== null);
 
     // Sort items by vertical position (top to bottom) and then horizontal position
     items.sort((a, b) => b.y !== a.y ? b.y - a.y : a.x - b.x);
@@ -163,7 +166,7 @@ async function extractMetadata(pdf: pdfjs.PDFDocumentProxy) {
 
     // Analyze text positions to detect headers and footers
     for (const item of textContent.items) {
-      const textItem = item as any;
+      const textItem = item as TextItem;
       const y = textItem.transform[5];
       
       // Consider text in top 10% as header
@@ -177,7 +180,10 @@ async function extractMetadata(pdf: pdfjs.PDFDocumentProxy) {
     }
 
     // Check for table-like structures in text content
-    const text = textContent.items.map((item: any) => item.str).join(' ');
+    const text = textContent.items
+      .filter((item): item is TextItem => 'str' in item)
+      .map((item) => item.str)
+      .join(' ');
     hasTables = /\|\s*[-|]+\s*\|/.test(text) || text.includes('┌') || text.includes('└') || text.includes('│');
   } catch (error) {
     console.error('Error extracting metadata:', error);

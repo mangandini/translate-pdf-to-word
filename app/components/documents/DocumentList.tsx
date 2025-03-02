@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -17,12 +16,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { X, Loader2, Download } from 'lucide-react';
+import { Loader2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DocumentListProps {
   documents: Document[];
-  onRefresh: () => void;
+  onRefresh?: () => Promise<void>;
 }
 
 interface DocumentDetailsProps {
@@ -191,6 +190,11 @@ export function DocumentList({ documents, onRefresh }: DocumentListProps) {
       
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      
+      // Refresh the document list after successful download
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (error) {
       console.error('Download error:', error);
       alert('Failed to download document. Please try again.');
