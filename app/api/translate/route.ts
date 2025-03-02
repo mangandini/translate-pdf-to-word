@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parsePDF } from '../../lib/pdf-parser';
-import { parseWord } from '../../lib/word-parser';
-import { translateContent } from '../../lib/openai';
-import { generateWordDocument } from '../../lib/docx-generator';
+import { translationService } from '../../lib/services/translation.service';
 import { SUPPORTED_LANGUAGES } from '../../lib/constants';
 
 // Polyfill for File API in Node.js environment
@@ -80,17 +77,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get original filename
-    const originalFilename = (fileData as File).name || 'document';
-    
-    // Remove file extension if present
-    const filenameWithoutExt = originalFilename.replace(/\.[^/.]+$/, '');
-
-    // Get other form data
+    // Get translation options
     const sourceLanguage = formData.get('sourceLanguage') as string;
     const targetLanguage = formData.get('targetLanguage') as string;
     const preserveFormatting = formData.get('preserveFormatting') === 'true';
     const customPrompt = formData.get('customPrompt') as string;
+    const downloadDirectly = formData.get('downloadDirectly') === 'true';
 
     // Validate required fields
     if (!sourceLanguage || !targetLanguage) {
@@ -100,99 +92,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get target language display name
-    const targetLanguageInfo = SUPPORTED_LANGUAGES.find(lang => lang.code === targetLanguage);
-    const targetLanguageName = targetLanguageInfo ? targetLanguageInfo.name : targetLanguage;
-
-    // Create new filename with target language
-    const newFilename = `${filenameWithoutExt} - ${targetLanguageName}.docx`;
-
-    // Parse document to Markdown based on file type
-    console.log(`Processing ${fileData.type} file...`);
-    let documentContent;
-    try {
-      if (fileData.type === 'application/pdf') {
-        console.log('Parsing PDF...');
-        documentContent = await parsePDF(fileData);
-      } else {
-        console.log('Parsing Word document...');
-        documentContent = await parseWord(fileData);
-      }
-      console.log('Document parsed successfully');
-    } catch (error) {
-      console.error('Error parsing document:', error);
-      return NextResponse.json(
-        { 
-          error: 'Failed to parse document',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        },
-        { status: 400 }
-      );
-    }
-
-    // Translate content
-    console.log('Starting translation...');
-    let translationResult;
-    try {
-      translationResult = await translateContent({
-        content: documentContent,
+    // Process translation with database integration
+    const result = await translationService.processDocument(
+      fileData as File,
+      {
         sourceLanguage,
         targetLanguage,
         preserveFormatting,
-        customPrompt
-      });
-      console.log('Translation completed');
-    } catch (error) {
-      console.error('Translation error:', error);
-      return NextResponse.json(
-        { 
-          error: 'Translation failed',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        },
-        { status: 500 }
-      );
-    }
-
-    // Generate Word document
-    console.log('Generating Word document...');
-    try {
-      const buffer = await generateWordDocument(translationResult.content);
-      
-      // Check if direct download is requested
-      const downloadDirectly = formData.get('downloadDirectly') === 'true';
-      
-      if (downloadDirectly) {
-        // Return the document as a downloadable file
-        const headers = new Headers();
-        headers.set('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        headers.set('Content-Disposition', `attachment; filename="${newFilename}"`);
-        
-        return new NextResponse(buffer, {
-          status: 200,
-          headers
-        });
-      } else {
-        // Return as base64 in JSON response
-        const base64Doc = buffer.toString('base64');
-        console.log('Word document generated successfully');
-
-        return NextResponse.json({
-          ...translationResult,
-          document: base64Doc,
-          filename: newFilename
-        });
+        customPrompt,
+        userId: 'anonymous', // TODO: Replace with actual user ID when auth is implemented
+        downloadDirectly
       }
-    } catch (error) {
-      console.error('Error generating Word document:', error);
-      return NextResponse.json(
-        { 
-          error: 'Failed to generate Word document',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        },
-        { status: 500 }
-      );
+    );
+
+    // Handle direct download response
+    if (downloadDirectly && result.headers) {
+      return new NextResponse(result.document as Buffer, {
+        status: 200,
+        headers: result.headers
+      });
     }
 
+    // Return JSON response
+    return NextResponse.json({
+      documentId: result.documentId,
+      document: result.document,
+      filename: result.filename,
+      content: result.content
+    });
   } catch (error) {
     console.error('Error processing request:', error);
     return NextResponse.json(

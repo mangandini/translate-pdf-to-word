@@ -12,6 +12,7 @@
 
 # production
 /build
+repomix* 
 
 # misc
 .DS_Store

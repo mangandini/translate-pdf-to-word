@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react"
 import { FileUpload } from "./components/FileUpload"
 import { TranslationForm } from "./components/TranslationForm"
-import { Header } from "./components/layout/Header"
-import { Footer } from "./components/layout/Footer"
 import type { TranslationFormData, TranslationStatus, UploadedFile } from "./types"
 import type { TranslationResult } from "./lib/openai"
 import { CheckCircle, Download, Loader2 } from "lucide-react"
@@ -118,78 +116,70 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-      
-      <main className="flex-1 py-8">
-        <div className="container max-w-6xl">
-          {isClient && (
-            <div className="grid gap-8 lg:grid-cols-2">
-              <div className="space-y-8">
-                <FileUpload onFileUpload={handleFileUpload} />
-                
-                {uploadedFile && (
-                  <TranslationForm
-                    uploadedFile={uploadedFile}
-                    onSubmit={handleTranslationSubmit}
-                    isProcessing={status === "processing"}
-                  />
-                )}
-              </div>
+    <div className="container max-w-6xl py-8">
+      {isClient && (
+        <div className="grid gap-8 lg:grid-cols-2">
+          <div className="space-y-8">
+            <FileUpload onFileUpload={handleFileUpload} />
+            
+            {uploadedFile && (
+              <TranslationForm
+                uploadedFile={uploadedFile}
+                onSubmit={handleTranslationSubmit}
+                isProcessing={status === "processing"}
+              />
+            )}
+          </div>
 
-              <div className="lg:border-l lg:pl-8">
-                {status === "processing" ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-8">
-                    <div className="w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4" />
-                    <h2 className="text-xl font-semibold mb-2">Translating Document</h2>
-                    <p className="text-muted-foreground">
-                      This may take a few moments depending on the document size...
+          <div className="lg:border-l lg:pl-8">
+            {status === "processing" ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                <div className="w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4" />
+                <h2 className="text-xl font-semibold mb-2">Translating Document</h2>
+                <p className="text-muted-foreground">
+                  This may take a few moments depending on the document size...
+                </p>
+              </div>
+            ) : translationResult ? (
+              <div className="space-y-6 p-6 border rounded-lg bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
+                    <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold">Translation Complete</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Your document has been successfully translated
                     </p>
                   </div>
-                ) : translationResult ? (
-                  <div className="space-y-6 p-6 border rounded-lg bg-secondary/30">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
-                        <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-semibold">Translation Complete</h2>
-                        <p className="text-sm text-muted-foreground">
-                          Your document has been successfully translated
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <button
-                      onClick={handleDownload}
-                      disabled={status === "downloading"}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white dark:text-black bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                    >
-                      {status === "downloading" ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Downloading...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="h-4 w-4" />
-                          Download as Word
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground">
-                    <p>Upload a PDF or Word file and configure translation settings to get started</p>
-                  </div>
-                )}
+                </div>
+                
+                <button
+                  onClick={handleDownload}
+                  disabled={status === "downloading"}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white dark:text-black bg-primary rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {status === "downloading" ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Download as Word
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 text-muted-foreground">
+                <p>Upload a PDF or Word file and configure translation settings to get started</p>
+              </div>
+            )}
+          </div>
         </div>
-      </main>
-      
-      <Footer />
+      )}
     </div>
   )
 } 
