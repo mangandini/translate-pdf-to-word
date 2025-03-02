@@ -40,15 +40,15 @@ function convertToMarkdown(
   let isList = false;
   let listPrefix = '';
   
-  // Detect lists first and save the prefix
-  if (text.match(/^[•\-\*]/)) {
+  // Detect lists with better pattern matching
+  if (text.match(/^[\s]*[•\-\*][\s]*/)) {
     isList = true;
     listPrefix = '- ';
-    markdown = text.replace(/^[•\-\*]/, '').trim();
-  } else if (text.match(/^\d+\./)) {
+    markdown = text.replace(/^[\s]*[•\-\*][\s]*/, '').trim();
+  } else if (text.match(/^[\s]*\d+\.[\s]*/)) {
     isList = true;
     listPrefix = '1. ';
-    markdown = text.replace(/^\d+\./, '').trim();
+    markdown = text.replace(/^[\s]*\d+\.[\s]*/, '').trim();
   }
   
   // Check for partial formatting patterns in the text
@@ -85,9 +85,44 @@ function convertToMarkdown(
     markdown = `${listPrefix}${markdown}`;
   }
   
-  // Add spacing based on position
-  const needsNewline = prevItem && Math.abs(item.transform[5] - prevItem.transform[5]) > 10;
-  return needsNewline ? `\n${markdown}` : markdown;
+  // Enhanced spacing detection with more aggressive rules
+  let prefix = '';
+  let suffix = '';
+  
+  if (prevItem) {
+    const verticalGap = Math.abs(item.transform[5] - prevItem.transform[5]);
+    const horizontalGap = Math.abs(item.transform[4] - prevItem.transform[4]);
+    const isNewLine = verticalGap > 0; // Any vertical difference indicates new line
+    
+    // More aggressive paragraph detection
+    if (verticalGap > 12) { // Reduced from 15 to 12 for more sensitive paragraph detection
+      prefix = '\n\n\n'; // Triple newline for clear paragraph separation
+    }
+    // Indentation or tab detection
+    else if (verticalGap < 3 && horizontalGap > 8) { // Reduced from 10 to 8 for better tab detection
+      prefix = '    ';
+    }
+    // Normal line break - more sensitive detection
+    else if (isNewLine) {
+      prefix = '\n\n'; // Double newline for better separation
+    }
+    // Same line continuation with proper spacing
+    else {
+      prefix = ' ';
+    }
+  }
+  
+  if (nextItem) {
+    const verticalGap = Math.abs(nextItem.transform[5] - item.transform[5]);
+    const isLastInParagraph = verticalGap > 12; // Check if this is the last line in a paragraph
+    
+    // Add extra line breaks for paragraph separation
+    if (isLastInParagraph) {
+      suffix = '\n\n';
+    }
+  }
+  
+  return prefix + markdown + suffix;
 }
 
 export async function parsePDF(input: Blob | File): Promise<PDFContent> {
@@ -110,12 +145,16 @@ export async function parsePDF(input: Blob | File): Promise<PDFContent> {
       const operatorList = await page.getOperatorList();
       hasImages = hasImages || operatorList.fnArray.includes(pdfjs.OPS.paintImageXObject);
       
-      // Add page separator
+      // Add page separator with extra spacing
       if (pageNum > 1) {
         markdownContent += '\n\n---\n\n';
       }
       
-      // Process text content
+      // Process text content with enhanced spacing handling
+      let currentY = null;
+      let isFirstItem = true;
+      let lastY: number | null = null;
+      
       textContent.items.forEach((item, index) => {
         const textItem = item as TextItem;
         const prevItem = index > 0 ? textContent.items[index - 1] as TextItem : null;
@@ -127,14 +166,46 @@ export async function parsePDF(input: Blob | File): Promise<PDFContent> {
           hasFooters = hasFooters || textItem.transform[5] < 100;
         }
         
-        // Convert to markdown and append
+        // Add extra paragraph break if significant vertical gap
+        if (lastY !== null && Math.abs(textItem.transform[5] - lastY) > 12) {
+          markdownContent += '\n\n';
+        }
+        
+        // Convert to markdown with enhanced spacing
         const markdown = convertToMarkdown(textItem, prevItem, nextItem, textItem.fontName as string | undefined);
-        markdownContent += markdown + ' ';
+        
+        // Handle first item of the page differently
+        if (isFirstItem) {
+          markdownContent += markdown.trimLeft();
+          isFirstItem = false;
+        } else {
+          markdownContent += markdown;
+        }
+        
+        lastY = textItem.transform[5];
       });
     }
     
+    // Enhanced cleanup of the final markdown
+    markdownContent = markdownContent
+      // Normalize line endings
+      .replace(/\r\n/g, '\n')
+      // Remove more than three consecutive blank lines
+      .replace(/\n{4,}/g, '\n\n\n')
+      // Ensure proper list formatting with extra spacing
+      .replace(/^(- |\d+\. )/gm, '\n\n$1')
+      // Remove trailing spaces
+      .replace(/[ \t]+$/gm, '')
+      // Ensure proper spacing around headings
+      .replace(/^(#{1,6} .*?)$/gm, '\n\n$1\n\n')
+      // Ensure paragraphs are properly separated
+      .replace(/([^\n])\n([^\n])/g, '$1\n\n$2')
+      // Final cleanup of excessive spacing
+      .replace(/\n{4,}/g, '\n\n\n')
+      .trim();
+    
     return {
-      markdown: markdownContent.trim(),
+      markdown: markdownContent,
       metadata: {
         pageCount: pdf.numPages,
         hasHeaders,

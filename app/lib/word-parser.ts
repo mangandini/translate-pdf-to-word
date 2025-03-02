@@ -14,47 +14,122 @@ const turndownService = new Turndown({
   strongDelimiter: '**',     // Use ** for strong
   bulletListMarker: '-',     // Use - for unordered lists
   hr: '---',                 // Use --- for horizontal rules
+  blankReplacement: function(content, node) {
+    // Preserve multiple blank lines by checking node type
+    return node.nodeName === 'P' || node.nodeName === 'DIV' || node.nodeName === 'BR' ? '\n\n' : '';
+  }
 });
 
-// Mejorar el manejo de listas y otros elementos
+// Improve list handling with better formatting
 turndownService.addRule('listItems', {
   filter: ['ul', 'ol'],
   replacement: function(content: string, node: Node) {
     const isOrdered = node.nodeName === 'OL';
-    const prefix = isOrdered ? '1. ' : '- ';
-    return '\n\n' + content.replace(/^/gm, prefix) + '\n\n';
+    
+    // Split content into lines and process each line
+    const lines = content.trim().split('\n');
+    const processedLines = lines.map((line, index) => {
+      line = line.trim();
+      if (!line) return '';
+      
+      // Remove any existing list markers
+      line = line.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, '');
+      
+      // Add the appropriate list marker
+      if (isOrdered) {
+        return `${index + 1}. ${line}`;
+      } else {
+        return `- ${line}`;
+      }
+    });
+    
+    // Join lines with proper spacing
+    return '\n\n' + processedLines.filter(line => line).join('\n') + '\n\n';
   }
 });
 
-// Mejorar el manejo de párrafos para preservar espaciado
+// Enhanced paragraph handling
 turndownService.addRule('paragraphs', {
   filter: 'p',
-  replacement: function(content: string) {
-    return '\n\n' + content + '\n\n';
+  replacement: function(content: string, node: Node) {
+    // Clean up the content first
+    content = content
+      .replace(/[*`]+/g, '') // Remove extra asterisks and backticks
+      .replace(/\s+/g, ' ')  // Normalize whitespace
+      .trim();
+    
+    // Check if the paragraph has special spacing
+    const style = (node as HTMLElement).style;
+    const marginBottom = style?.marginBottom;
+    const marginTop = style?.marginTop;
+    
+    // Add extra line breaks for paragraphs with larger margins
+    const hasExtraSpacing = marginBottom?.includes('2em') || marginTop?.includes('2em');
+    const spacing = hasExtraSpacing ? '\n\n\n' : '\n\n';
+    
+    return spacing + content + spacing;
+  }
+});
+
+// Add rule for headings with better formatting
+turndownService.addRule('headings', {
+  filter: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+  replacement: function(content: string, node: Node) {
+    const level = Number(node.nodeName.charAt(1));
+    // Clean up the content
+    content = content
+      .replace(/[*`]+/g, '') // Remove extra asterisks and backticks
+      .trim();
+    return '\n\n' + '#'.repeat(level) + ' ' + content + '\n\n';
   }
 });
 
 /**
- * Limpia y formatea el Markdown usando reglas básicas
+ * Enhanced Markdown cleaning with better formatting preservation
  */
 async function cleanMarkdown(markdown: string): Promise<string> {
   try {
-    // Aplicar reglas básicas de limpieza
-    const cleanedMarkdown = markdown
-      // Eliminar espacios en blanco múltiples
-      .replace(/\s+/g, ' ')
-      // Normalizar saltos de línea
-      .replace(/\n{3,}/g, '\n\n')
-      // Asegurar que los encabezados tengan espacio después del #
-      .replace(/^(#{1,6})([^ \n])/gm, '$1 $2')
-      // Normalizar listas
-      .replace(/^[-*+]\s*/gm, '- ')
-      .replace(/^\d+\.\s*/gm, '1. ')
-      // Eliminar espacios al final de las líneas
+    // Apply enhanced cleaning rules
+    let cleanedMarkdown = markdown
+      // Normalize line endings
+      .replace(/\r\n/g, '\n')
+      // Remove code blocks that shouldn't be there
+      .replace(/```[^`]*```/g, '')
+      // Remove extra asterisks
+      .replace(/\*{3,}/g, '**')
+      // Clean up list formatting
+      .replace(/^[-*•]\s*(\d+\.)/gm, '$1') // Remove bullet points before numbers
+      .replace(/^(\d+\.)\s*[-*•]/gm, '$1') // Remove bullet points after numbers
+      // Normalize ordered lists
+      .replace(/^\d+\.\s+/gm, (match, offset) => {
+        // Count previous list items to determine the correct number
+        const previousItems = markdown
+          .slice(0, offset)
+          .match(/^\d+\.\s+/gm)?.length || 0;
+        return `${previousItems + 1}. `;
+      })
+      // Remove trailing spaces
       .replace(/[ \t]+$/gm, '')
+      // Ensure proper spacing around headings
+      .replace(/^(#{1,6} .*?)$/gm, '\n\n$1\n\n')
+      // Ensure paragraphs are properly separated
+      .replace(/([^\n])\n([^\n])/g, '$1\n\n$2')
+      // Remove multiple consecutive blank lines
+      .replace(/\n{3,}/g, '\n\n')
       .trim() + '\n';
 
-    console.log('Basic Markdown cleaning completed');
+    // Final pass to ensure proper list formatting
+    cleanedMarkdown = cleanedMarkdown
+      .split('\n')
+      .map(line => {
+        // Clean up any remaining mixed list markers
+        line = line.replace(/^[-*•]+\s*(\d+\.)/, '$1'); // Remove bullets before numbers
+        line = line.replace(/^(\d+\.)\s*[-*•]+/, '$1'); // Remove bullets after numbers
+        return line;
+      })
+      .join('\n');
+
+    console.log('Enhanced Markdown cleaning completed');
     return cleanedMarkdown;
   } catch (error) {
     console.warn('Error during Markdown cleaning, returning original:', error);
