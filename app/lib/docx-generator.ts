@@ -273,8 +273,16 @@ function convertMarkdownToDocx(markdown: string): Paragraph[] {
 }
 
 function processTextWithFormatting(text: string): TextRun[] {
-  // Special case for list items with partial formatting (e.g., "**Bold part**: regular part")
-  const colonFormatPattern = /^\*\*(.*?)\*\*\s*:\s*(.*)$/;
+  // Preserve answer spaces (multiple underscores)
+  const answerSpacePattern = /_{3,}/g;
+  const answerSpaces = text.match(answerSpacePattern);
+  if (answerSpaces) {
+    // Replace answer spaces with a temporary marker
+    text = text.replace(answerSpacePattern, (match) => `§${match.length}§`);
+  }
+
+  // Special case for list items with partial formatting
+  const colonFormatPattern = /^\*\*([^:]+)\*\*\s*:\s*(.*)$/;
   const colonFormatMatch = text.match(colonFormatPattern);
   
   if (colonFormatMatch) {
@@ -288,40 +296,41 @@ function processTextWithFormatting(text: string): TextRun[] {
     ];
   }
   
-  // Check if the text contains bold or italic markers
+  // Check for different types of formatting
   const hasBold = text.includes('**');
-  const hasItalic = text.includes('*') && !text.includes('**');
+  const hasItalicAsterisk = text.includes('*') && !text.includes('**');
+  const hasItalicUnderscore = text.includes('_');
   
-  if (!hasBold && !hasItalic) {
-    // No formatting, return simple text run
+  if (!hasBold && !hasItalicAsterisk && !hasItalicUnderscore) {
+    // Restore answer spaces in plain text
+    if (answerSpaces) {
+      text = text.replace(/§(\d+)§/g, (_, length) => '_'.repeat(Number(length)));
+    }
     return [new TextRun({ text })];
   }
   
   const textRuns: TextRun[] = [];
   
-  // Process bold formatting
+  // Process bold formatting first
   if (hasBold) {
-    // Use non-greedy matching to properly handle multiple bold sections
     const parts = text.split(/(\*\*.*?\*\*)/g);
     
     parts.forEach(part => {
       if (part.startsWith('**') && part.endsWith('**')) {
         // Bold text
         const boldText = part.slice(2, -2);
-        // Check if bold text also has italic formatting
-        if (boldText.includes('*')) {
-          // Use non-greedy matching for italic within bold
-          const italicParts = boldText.split(/(\*.*?\*)/g);
+        // Process italic within bold
+        if (boldText.includes('*') || boldText.includes('_')) {
+          const italicParts = boldText.split(/(\*.*?\*|_.*?_)/g);
           italicParts.forEach(italicPart => {
-            if (italicPart.startsWith('*') && italicPart.endsWith('*')) {
-              // Bold and italic
+            if ((italicPart.startsWith('*') && italicPart.endsWith('*')) ||
+                (italicPart.startsWith('_') && italicPart.endsWith('_'))) {
               textRuns.push(new TextRun({ 
                 text: italicPart.slice(1, -1), 
                 bold: true,
                 italics: true 
               }));
             } else if (italicPart) {
-              // Just bold
               textRuns.push(new TextRun({ 
                 text: italicPart, 
                 bold: true 
@@ -329,48 +338,64 @@ function processTextWithFormatting(text: string): TextRun[] {
             }
           });
         } else {
-          // Just bold
           textRuns.push(new TextRun({ 
             text: boldText, 
             bold: true 
           }));
         }
       } else if (part) {
-        // Check for italic in non-bold text
-        if (part.includes('*')) {
-          // Use non-greedy matching for italic
-          const italicParts = part.split(/(\*.*?\*)/g);
+        // Process italic in non-bold text
+        if (part.includes('*') || part.includes('_')) {
+          const italicParts = part.split(/(\*.*?\*|_.*?_)/g);
           italicParts.forEach(italicPart => {
-            if (italicPart.startsWith('*') && italicPart.endsWith('*')) {
-              // Italic
+            if ((italicPart.startsWith('*') && italicPart.endsWith('*')) ||
+                (italicPart.startsWith('_') && italicPart.endsWith('_'))) {
+              // Restore answer spaces in italic text
+              let italicText = italicPart.slice(1, -1);
+              if (answerSpaces) {
+                italicText = italicText.replace(/§(\d+)§/g, (_, length) => '_'.repeat(Number(length)));
+              }
               textRuns.push(new TextRun({ 
-                text: italicPart.slice(1, -1), 
+                text: italicText, 
                 italics: true 
               }));
             } else if (italicPart) {
-              // Regular text
+              // Restore answer spaces in regular text
+              if (answerSpaces) {
+                italicPart = italicPart.replace(/§(\d+)§/g, (_, length) => '_'.repeat(Number(length)));
+              }
               textRuns.push(new TextRun({ text: italicPart }));
             }
           });
         } else {
-          // Regular text
+          // Restore answer spaces in regular text
+          if (answerSpaces) {
+            part = part.replace(/§(\d+)§/g, (_, length) => '_'.repeat(Number(length)));
+          }
           textRuns.push(new TextRun({ text: part }));
         }
       }
     });
-  } else if (hasItalic) {
-    // Only italic formatting
-    // Use non-greedy matching for italic
-    const parts = text.split(/(\*.*?\*)/g);
+  } else {
+    // Only italic formatting (either * or _)
+    const parts = text.split(/(\*.*?\*|_.*?_)/g);
     parts.forEach(part => {
-      if (part.startsWith('*') && part.endsWith('*')) {
-        // Italic
+      if ((part.startsWith('*') && part.endsWith('*')) ||
+          (part.startsWith('_') && part.endsWith('_'))) {
+        // Restore answer spaces in italic text
+        let italicText = part.slice(1, -1);
+        if (answerSpaces) {
+          italicText = italicText.replace(/§(\d+)§/g, (_, length) => '_'.repeat(Number(length)));
+        }
         textRuns.push(new TextRun({ 
-          text: part.slice(1, -1), 
+          text: italicText, 
           italics: true 
         }));
       } else if (part) {
-        // Regular text
+        // Restore answer spaces in regular text
+        if (answerSpaces) {
+          part = part.replace(/§(\d+)§/g, (_, length) => '_'.repeat(Number(length)));
+        }
         textRuns.push(new TextRun({ text: part }));
       }
     });

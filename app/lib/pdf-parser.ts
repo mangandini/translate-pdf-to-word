@@ -31,24 +31,78 @@ export interface PDFContent {
 }
 
 function cleanupMarkdown(markdown: string): string {
-  return markdown
-    // Normalize line endings
+  // First pass: normalize basic elements
+  let text = markdown
     .replace(/\r\n/g, '\n')
-    // Remove more than two consecutive blank lines
+    // Fix common PDF conversion artifacts
+    .replace(/([^_])'([^_])/g, "$1'$2")
+    .replace(/([^_])"([^_])/g, '$1"$2');
+
+  // Handle biblical quotes (special case)
+  text = text.replace(
+    /_+"([^"]+)"_+/g,
+    "**_$1_**"
+  );
+
+  // Handle biblical references
+  text = text.replace(
+    /_+(-\s*)?([^_]+\([^)]+\))_+/g,
+    "**$2**"
+  );
+
+  // Split into lines for structural processing
+  const lines = text.split('\n');
+  const processedLines: string[] = [];
+  let inQuote = false;
+
+  for (const line of lines) {
+    let processedLine = line.trim();
+    
+    if (!processedLine) {
+      processedLines.push('');
+      continue;
+    }
+
+    // Handle headings
+    if (processedLine.startsWith('#')) {
+      if (processedLines.length > 0 && processedLines[processedLines.length - 1] !== '') {
+        processedLines.push('');
+      }
+      processedLine = processedLine.replace(/^(#{1,6}):?\s*/, '$1 ');
+      processedLines.push(processedLine);
+      processedLines.push('');
+      continue;
+    }
+
+    // Handle bullet points
+    if (processedLine.includes('●')) {
+      if (processedLines.length > 0 && processedLines[processedLines.length - 1] !== '') {
+        processedLines.push('');
+      }
+      processedLine = processedLine.replace(/●\s*/, '* ');
+    }
+
+    // Clean up any remaining formatting issues
+    processedLine = processedLine
+      // Fix multiple asterisks
+      .replace(/\*{3,}/g, '**')
+      // Fix multiple underscores
+      .replace(/_{3,}/g, '_')
+      // Fix space between formatting
+      .replace(/\*\s+\*/g, '**')
+      .replace(/_\s+_/g, '_');
+
+    processedLines.push(processedLine);
+  }
+
+  // Final cleanup
+  return processedLines
+    .join('\n')
+    // Remove multiple consecutive empty lines
     .replace(/\n{3,}/g, '\n\n')
-    // Fix list item formatting (ensure proper spacing)
-    .replace(/^([*-])\s*([^\n]*)/gm, '$1 $2')
-    // Fix nested formatting in lists
-    .replace(/^([*-])\s+\*\*([^\n]*)\*\*/gm, '$1 **$2**')
-    .replace(/^([*-])\s+\*([^\n]*)\*/gm, '$1 *$2*')
-    // Fix numbered lists
-    .replace(/^(\d+\.)\s*([^\n]*)/gm, '$1 $2')
-    // Fix heading spacing
-    .replace(/^(#{1,6})\s*([^\n]*)/gm, '$1 $2')
-    // Remove trailing spaces
-    .replace(/[ \t]+$/gm, '')
-    // Ensure proper table formatting
-    .replace(/\|[\t ]*\n/g, '|\n')
+    // Final formatting fixes
+    .replace(/\*\*\s+\*\*/g, '**')
+    .replace(/_\s+_/g, '_')
     .trim();
 }
 
