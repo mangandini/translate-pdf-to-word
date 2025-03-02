@@ -34,6 +34,8 @@ function cleanupMarkdown(markdown: string): string {
   // First pass: normalize basic elements
   let text = markdown
     .replace(/\r\n/g, '\n')
+    // Replace answer spaces with temporary character (must be done before any formatting)
+    .replace(/_{3,}/g, (match) => '▁'.repeat(match.length))
     // Fix common PDF conversion artifacts
     .replace(/([^_])'([^_])/g, "$1'$2")
     .replace(/([^_])"([^_])/g, '$1"$2');
@@ -86,8 +88,6 @@ function cleanupMarkdown(markdown: string): string {
     processedLine = processedLine
       // Fix multiple asterisks
       .replace(/\*{3,}/g, '**')
-      // Fix multiple underscores
-      .replace(/_{3,}/g, '_')
       // Fix space between formatting
       .replace(/\*\s+\*/g, '**')
       .replace(/_\s+_/g, '_');
@@ -95,7 +95,7 @@ function cleanupMarkdown(markdown: string): string {
     processedLines.push(processedLine);
   }
 
-  // Final cleanup
+  // Final cleanup and restore answer spaces
   return processedLines
     .join('\n')
     // Remove multiple consecutive empty lines
@@ -103,6 +103,8 @@ function cleanupMarkdown(markdown: string): string {
     // Final formatting fixes
     .replace(/\*\*\s+\*\*/g, '**')
     .replace(/_\s+_/g, '_')
+    // Restore answer spaces
+    .replace(/▁+/g, (match) => '_'.repeat(match.length))
     .trim();
 }
 
