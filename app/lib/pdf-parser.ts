@@ -1,9 +1,25 @@
-import * as pdfjs from 'pdfjs-dist'
-import { TextItem } from 'pdfjs-dist/types/src/display/api'
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry'
+import pdf2md from '@opendocsg/pdf2md';
+import * as pdfjs from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
 
 // Configure worker
-pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker
+pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+// PDF to Markdown conversion callbacks
+const PDF2MD_CALLBACKS = {
+  // Called when metadata is parsed
+  metadataParsed: (metadata: any) => {
+    console.log('PDF metadata parsed:', metadata);
+  },
+  // Called when each page is parsed
+  pageParsed: (pages: any[]) => {
+    console.log('Page parsed, total pages:', pages.length);
+  },
+  // Called when document parsing is complete
+  documentParsed: (document: any, pages: any[]) => {
+    console.log('Document parsing complete');
+  }
+};
 
 export interface PDFContent {
   markdown: string;
@@ -16,207 +32,163 @@ export interface PDFContent {
   };
 }
 
-function detectHeadingLevel(fontSize: number): number {
-  if (fontSize >= 20) return 1;
-  if (fontSize >= 16) return 2;
-  if (fontSize >= 14) return 3;
-  return 0; // Not a heading
-}
-
-function convertToMarkdown(
-  item: TextItem,
-  prevItem: TextItem | null,
-  nextItem: TextItem | null,
-  fontName?: string
-): string {
-  const fontSize = Math.abs(item.transform[0]);
-  const text = item.str.trim();
-  const fontNameLower = (fontName || '').toLowerCase();
-  
-  // Skip empty text
-  if (!text) return '';
-  
-  let markdown = text;
-  let isList = false;
-  let listPrefix = '';
-  
-  // Detect lists with better pattern matching
-  if (text.match(/^[\s]*[•\-\*][\s]*/)) {
-    isList = true;
-    listPrefix = '- ';
-    markdown = text.replace(/^[\s]*[•\-\*][\s]*/, '').trim();
-  } else if (text.match(/^[\s]*\d+\.[\s]*/)) {
-    isList = true;
-    listPrefix = '1. ';
-    markdown = text.replace(/^[\s]*\d+\.[\s]*/, '').trim();
-  }
-  
-  // Check for partial formatting patterns in the text
-  const hasColonSeparator = markdown.includes(':');
-  
-  if (hasColonSeparator && fontNameLower.includes('bold')) {
-    // Handle the case where only part of the text is bold (before the colon)
-    const parts = markdown.split(':');
-    if (parts.length >= 2) {
-      const boldPart = parts[0].trim();
-      const restPart = parts.slice(1).join(':').trim();
-      markdown = `**${boldPart}**: ${restPart}`;
-    } else {
-      markdown = `**${markdown}**`;
-    }
-  } else {
-    // Apply formatting to the entire text
-    if (fontNameLower.includes('bold')) {
-      markdown = `**${markdown}**`;
-    }
-    if (fontNameLower.includes('italic')) {
-      markdown = `*${markdown}*`;
-    }
-  }
-  
-  // Detect headings
-  const headingLevel = detectHeadingLevel(fontSize);
-  if (headingLevel > 0 && !isList) {
-    markdown = `${'#'.repeat(headingLevel)} ${markdown}`;
-  }
-  
-  // Add list prefix after formatting is applied
-  if (isList) {
-    markdown = `${listPrefix}${markdown}`;
-  }
-  
-  // Enhanced spacing detection with more aggressive rules
-  let prefix = '';
-  let suffix = '';
-  
-  if (prevItem) {
-    const verticalGap = Math.abs(item.transform[5] - prevItem.transform[5]);
-    const horizontalGap = Math.abs(item.transform[4] - prevItem.transform[4]);
-    const isNewLine = verticalGap > 0; // Any vertical difference indicates new line
-    
-    // More aggressive paragraph detection
-    if (verticalGap > 12) { // Reduced from 15 to 12 for more sensitive paragraph detection
-      prefix = '\n\n\n'; // Triple newline for clear paragraph separation
-    }
-    // Indentation or tab detection
-    else if (verticalGap < 3 && horizontalGap > 8) { // Reduced from 10 to 8 for better tab detection
-      prefix = '    ';
-    }
-    // Normal line break - more sensitive detection
-    else if (isNewLine) {
-      prefix = '\n\n'; // Double newline for better separation
-    }
-    // Same line continuation with proper spacing
-    else {
-      prefix = ' ';
-    }
-  }
-  
-  if (nextItem) {
-    const verticalGap = Math.abs(nextItem.transform[5] - item.transform[5]);
-    const isLastInParagraph = verticalGap > 12; // Check if this is the last line in a paragraph
-    
-    // Add extra line breaks for paragraph separation
-    if (isLastInParagraph) {
-      suffix = '\n\n';
-    }
-  }
-  
-  return prefix + markdown + suffix;
+function cleanupMarkdown(markdown: string): string {
+  return markdown
+    // Normalize line endings
+    .replace(/\r\n/g, '\n')
+    // Remove more than two consecutive blank lines
+    .replace(/\n{3,}/g, '\n\n')
+    // Fix list item formatting (ensure proper spacing)
+    .replace(/^([*-])\s*([^\n]*)/gm, '$1 $2')
+    // Fix nested formatting in lists
+    .replace(/^([*-])\s+\*\*([^\n]*)\*\*/gm, '$1 **$2**')
+    .replace(/^([*-])\s+\*([^\n]*)\*/gm, '$1 *$2*')
+    // Fix numbered lists
+    .replace(/^(\d+\.)\s*([^\n]*)/gm, '$1 $2')
+    // Fix heading spacing
+    .replace(/^(#{1,6})\s*([^\n]*)/gm, '$1 $2')
+    // Remove trailing spaces
+    .replace(/[ \t]+$/gm, '')
+    // Ensure proper table formatting
+    .replace(/\|[\t ]*\n/g, '|\n')
+    .trim();
 }
 
 export async function parsePDF(input: Blob | File): Promise<PDFContent> {
   try {
-    const buffer = await input.arrayBuffer();
-    const loadingTask = pdfjs.getDocument({ data: buffer });
+    // Create two separate array buffers for pdf.js and pdf2md
+    const arrayBuffer1 = await input.arrayBuffer();
+    const arrayBuffer2 = await input.arrayBuffer();
+
+    // Convert first buffer for pdf.js
+    const uint8Array = new Uint8Array(arrayBuffer1);
+
+    // First try to extract metadata since it's more likely to succeed
+    const loadingTask = pdfjs.getDocument({ data: uint8Array });
     const pdf = await loadingTask.promise;
-    
-    let markdownContent = '';
-    let hasHeaders = false;
-    let hasFooters = false;
-    const hasTables = false;
-    let hasImages = false;
-    
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
+    const metadata = await extractMetadata(pdf);
+
+    // Then try the markdown conversion with second buffer
+    try {
+      // pdf2md expects a Buffer
+      const buffer = Buffer.from(arrayBuffer2);
+      const markdown = await pdf2md(buffer, PDF2MD_CALLBACKS);
       
-      // Check for images
-      const operatorList = await page.getOperatorList();
-      hasImages = hasImages || operatorList.fnArray.includes(pdfjs.OPS.paintImageXObject);
+      // Clean up the markdown output
+      const cleanedMarkdown = cleanupMarkdown(markdown);
       
-      // Add page separator with extra spacing
-      if (pageNum > 1) {
-        markdownContent += '\n\n---\n\n';
-      }
-      
-      // Process text content with enhanced spacing handling
-      let currentY = null;
-      let isFirstItem = true;
-      let lastY: number | null = null;
-      
-      textContent.items.forEach((item, index) => {
-        const textItem = item as TextItem;
-        const prevItem = index > 0 ? textContent.items[index - 1] as TextItem : null;
-        const nextItem = index < textContent.items.length - 1 ? textContent.items[index + 1] as TextItem : null;
-        
-        // Detect headers and footers on first page
-        if (pageNum === 1) {
-          hasHeaders = hasHeaders || textItem.transform[5] > page.view[3] - 100;
-          hasFooters = hasFooters || textItem.transform[5] < 100;
-        }
-        
-        // Add extra paragraph break if significant vertical gap
-        if (lastY !== null && Math.abs(textItem.transform[5] - lastY) > 12) {
-          markdownContent += '\n\n';
-        }
-        
-        // Convert to markdown with enhanced spacing
-        const markdown = convertToMarkdown(textItem, prevItem, nextItem, textItem.fontName as string | undefined);
-        
-        // Handle first item of the page differently
-        if (isFirstItem) {
-          markdownContent += markdown.trimLeft();
-          isFirstItem = false;
-        } else {
-          markdownContent += markdown;
-        }
-        
-        lastY = textItem.transform[5];
-      });
+      return {
+        markdown: cleanedMarkdown,
+        metadata
+      };
+    } catch (mdError) {
+      console.error('Error converting to markdown:', mdError);
+      // Fallback to basic text extraction if markdown conversion fails
+      const textContent = await extractTextContent(pdf);
+      return {
+        markdown: cleanupMarkdown(textContent),
+        metadata
+      };
     }
-    
-    // Enhanced cleanup of the final markdown
-    markdownContent = markdownContent
-      // Normalize line endings
-      .replace(/\r\n/g, '\n')
-      // Remove more than three consecutive blank lines
-      .replace(/\n{4,}/g, '\n\n\n')
-      // Ensure proper list formatting with extra spacing
-      .replace(/^(- |\d+\. )/gm, '\n\n$1')
-      // Remove trailing spaces
-      .replace(/[ \t]+$/gm, '')
-      // Ensure proper spacing around headings
-      .replace(/^(#{1,6} .*?)$/gm, '\n\n$1\n\n')
-      // Ensure paragraphs are properly separated
-      .replace(/([^\n])\n([^\n])/g, '$1\n\n$2')
-      // Final cleanup of excessive spacing
-      .replace(/\n{4,}/g, '\n\n\n')
-      .trim();
-    
-    return {
-      markdown: markdownContent,
-      metadata: {
-        pageCount: pdf.numPages,
-        hasHeaders,
-        hasFooters,
-        hasTables,
-        hasImages
-      }
-    };
-    
   } catch (error) {
     console.error('PDF parsing error:', error);
-    throw new Error('Failed to parse PDF');
+    throw new Error(`Failed to parse PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+async function extractTextContent(pdf: pdfjs.PDFDocumentProxy): Promise<string> {
+  let text = '';
+  let lastY: number | null = null;
+  
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    
+    // Process items with position information
+    const items = content.items.map((item: any) => ({
+      text: item.str,
+      y: item.transform[5],
+      x: item.transform[4],
+      fontName: item.fontName
+    }));
+
+    // Sort items by vertical position (top to bottom) and then horizontal position
+    items.sort((a, b) => b.y !== a.y ? b.y - a.y : a.x - b.x);
+
+    // Process items with better formatting detection
+    for (const item of items) {
+      // Detect if we need a new paragraph based on vertical position
+      if (lastY !== null && Math.abs(item.y - lastY) > 12) {
+        text += '\n\n';
+      } else if (lastY !== null && item.y !== lastY) {
+        text += ' ';
+      }
+
+      // Add the text with basic formatting
+      let itemText = item.text;
+      if (item.fontName && item.fontName.toLowerCase().includes('bold')) {
+        itemText = `**${itemText}**`;
+      }
+      
+      text += itemText;
+      lastY = item.y;
+    }
+
+    // Add page separator except for last page
+    if (i < pdf.numPages) {
+      text += '\n\n---\n\n';
+    }
+  }
+  
+  return cleanupMarkdown(text.trim());
+}
+
+async function extractMetadata(pdf: pdfjs.PDFDocumentProxy) {
+  let hasHeaders = false;
+  let hasFooters = false;
+  let hasImages = false;
+  let hasTables = false;
+
+  try {
+    // Check first page for headers, footers, images, and tables
+    const page = await pdf.getPage(1);
+    const operatorList = await page.getOperatorList();
+    
+    // Check for images
+    hasImages = operatorList.fnArray.includes(pdfjs.OPS.paintImageXObject);
+
+    // Get text content to check for headers and footers
+    const textContent = await page.getTextContent();
+    const { height } = page.getViewport({ scale: 1.0 });
+
+    // Analyze text positions to detect headers and footers
+    for (const item of textContent.items) {
+      const textItem = item as any;
+      const y = textItem.transform[5];
+      
+      // Consider text in top 10% as header
+      if (y > height * 0.9) {
+        hasHeaders = true;
+      }
+      // Consider text in bottom 10% as footer
+      if (y < height * 0.1) {
+        hasFooters = true;
+      }
+    }
+
+    // Check for table-like structures in text content
+    const text = textContent.items.map((item: any) => item.str).join(' ');
+    hasTables = /\|\s*[-|]+\s*\|/.test(text) || text.includes('┌') || text.includes('└') || text.includes('│');
+  } catch (error) {
+    console.error('Error extracting metadata:', error);
+    // Return default values if metadata extraction fails
+  }
+
+  return {
+    pageCount: pdf.numPages,
+    hasHeaders,
+    hasFooters,
+    hasTables,
+    hasImages
+  };
 } 

@@ -45,7 +45,8 @@ const DEFAULT_FORMATTING_INSTRUCTIONS = `IMPORTANT: This document uses Markdown 
 - Maintain '*text*' for italic
 - Keep all list markers ('- ' or '1. ')
 - Preserve line breaks and paragraph structure
-- Maintain any other Markdown formatting markers`;
+- Maintain any other Markdown formatting markers
+- Fix broken sentences if there are strange characters or line breaks`;
 
 const TRANSLATION_EXAMPLES = [
   {
