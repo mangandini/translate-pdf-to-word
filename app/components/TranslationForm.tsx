@@ -172,11 +172,11 @@ export function TranslationForm({ uploadedFile, onSubmit, isProcessing }: Transl
         {isProcessing ? (
           <>
             <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-            Processing...
+            <span className=" text-white dark:text-black">Processing...</span>
           </>
         ) : (
           <>
-            Translate Document
+            <span className=" text-white dark:text-black">Translate Document</span>
             <ArrowRight className="h-4 w-4" />
           </>
         )}

@@ -1,121 +1,130 @@
-import { useState } from 'react';
-import { SUPPORTED_LANGUAGES } from '../../lib/constants';
+import { ChangeEvent } from 'react';
+
+interface FilterState {
+  search: string;
+  dateFrom: string;
+  dateTo: string;
+  status: string;
+}
 
 interface DocumentFiltersProps {
-  onFilterChange?: (filters: DocumentFilters) => void;
+  filters: FilterState;
+  onFilterChange: (filters: Partial<FilterState>) => void;
+  onReset: () => void;
 }
 
-interface DocumentFilters {
-  status?: string;
-  sourceLanguage?: string;
-  targetLanguage?: string;
-  sortBy?: 'date' | 'name' | 'status';
-  sortOrder?: 'asc' | 'desc';
-}
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All Status' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'processing', label: 'Processing' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'failed', label: 'Failed' },
+];
 
-export function DocumentFilters({ onFilterChange }: DocumentFiltersProps) {
-  const [filters, setFilters] = useState<DocumentFilters>({
-    sortBy: 'date',
-    sortOrder: 'desc'
-  });
-
-  const handleFilterChange = (key: keyof DocumentFilters, value: string) => {
-    const newFilters = { ...filters, [key]: value || undefined };
-    setFilters(newFilters);
-    onFilterChange?.(newFilters);
+export function DocumentFilters({ filters, onFilterChange, onReset }: DocumentFiltersProps) {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    onFilterChange({ [name]: value });
   };
 
   return (
-    <div className="flex flex-wrap gap-4 mb-6">
-      <div className="flex-1 min-w-[200px]">
-        <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-          Status
-        </label>
-        <select
-          id="status"
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          value={filters.status || ''}
-          onChange={(e) => handleFilterChange('status', e.target.value)}
-          aria-label="Filter by status"
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white">Filters</h2>
+        <button
+          onClick={onReset}
+          className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
         >
-          <option value="">All Statuses</option>
-          <option value="completed">Completed</option>
-          <option value="processing">Processing</option>
-          <option value="error">Error</option>
-        </select>
+          Reset Filters
+        </button>
       </div>
 
-      <div className="flex-1 min-w-[200px]">
-        <label htmlFor="sourceLanguage" className="block text-sm font-medium text-gray-700 mb-1">
-          Source Language
-        </label>
-        <select
-          id="sourceLanguage"
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          value={filters.sourceLanguage || ''}
-          onChange={(e) => handleFilterChange('sourceLanguage', e.target.value)}
-          aria-label="Filter by source language"
-        >
-          <option value="">All Languages</option>
-          {SUPPORTED_LANGUAGES.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Search Input */}
+        <div className="space-y-1">
+          <label 
+            htmlFor="search" 
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            Search
+          </label>
+          <input
+            type="text"
+            id="search"
+            name="search"
+            value={filters.search}
+            onChange={handleInputChange}
+            placeholder="Search documents..."
+            className="block w-full rounded-md border-gray-300 dark:border-gray-600 
+                     shadow-sm focus:border-blue-500 focus:ring-blue-500 
+                     dark:bg-gray-700 dark:text-white sm:text-sm"
+          />
+        </div>
 
-      <div className="flex-1 min-w-[200px]">
-        <label htmlFor="targetLanguage" className="block text-sm font-medium text-gray-700 mb-1">
-          Target Language
-        </label>
-        <select
-          id="targetLanguage"
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          value={filters.targetLanguage || ''}
-          onChange={(e) => handleFilterChange('targetLanguage', e.target.value)}
-          aria-label="Filter by target language"
-        >
-          <option value="">All Languages</option>
-          {SUPPORTED_LANGUAGES.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.name}
-            </option>
-          ))}
-        </select>
-      </div>
+        {/* Date From */}
+        <div className="space-y-1">
+          <label 
+            htmlFor="dateFrom" 
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            Date From
+          </label>
+          <input
+            type="date"
+            id="dateFrom"
+            name="dateFrom"
+            value={filters.dateFrom}
+            onChange={handleInputChange}
+            className="block w-full rounded-md border-gray-300 dark:border-gray-600 
+                     shadow-sm focus:border-blue-500 focus:ring-blue-500 
+                     dark:bg-gray-700 dark:text-white sm:text-sm"
+          />
+        </div>
 
-      <div className="flex-1 min-w-[200px]">
-        <label htmlFor="sortBy" className="block text-sm font-medium text-gray-700 mb-1">
-          Sort By
-        </label>
-        <select
-          id="sortBy"
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          value={filters.sortBy}
-          onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-          aria-label="Sort documents by"
-        >
-          <option value="date">Date</option>
-          <option value="name">Name</option>
-          <option value="status">Status</option>
-        </select>
-      </div>
+        {/* Date To */}
+        <div className="space-y-1">
+          <label 
+            htmlFor="dateTo" 
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            Date To
+          </label>
+          <input
+            type="date"
+            id="dateTo"
+            name="dateTo"
+            value={filters.dateTo}
+            onChange={handleInputChange}
+            className="block w-full rounded-md border-gray-300 dark:border-gray-600 
+                     shadow-sm focus:border-blue-500 focus:ring-blue-500 
+                     dark:bg-gray-700 dark:text-white sm:text-sm"
+          />
+        </div>
 
-      <div className="flex-1 min-w-[200px]">
-        <label htmlFor="sortOrder" className="block text-sm font-medium text-gray-700 mb-1">
-          Sort Order
-        </label>
-        <select
-          id="sortOrder"
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          value={filters.sortOrder}
-          onChange={(e) => handleFilterChange('sortOrder', e.target.value)}
-          aria-label="Sort order"
-        >
-          <option value="desc">Newest First</option>
-          <option value="asc">Oldest First</option>
-        </select>
+        {/* Status Select */}
+        <div className="space-y-1">
+          <label 
+            htmlFor="status" 
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            Status
+          </label>
+          <select
+            id="status"
+            name="status"
+            value={filters.status}
+            onChange={handleInputChange}
+            className="block w-full rounded-md border-gray-300 dark:border-gray-600 
+                     shadow-sm focus:border-blue-500 focus:ring-blue-500 
+                     dark:bg-gray-700 dark:text-white sm:text-sm"
+          >
+            {STATUS_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
     </div>
   );
