@@ -55,7 +55,6 @@ function cleanupMarkdown(markdown: string): string {
   // Split into lines for structural processing
   const lines = text.split('\n');
   const processedLines: string[] = [];
-  let inQuote = false;
 
   for (const line of lines) {
     let processedLine = line.trim();
